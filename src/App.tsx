@@ -7,7 +7,8 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, onSnapshot, collection, query, where, orderBy, limit } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { getToken, onMessage } from 'firebase/messaging';
+import { auth, db, messaging, firebaseConfig } from './firebase';
 import { UserProfile } from './types';
 
 // Pages
@@ -90,6 +91,47 @@ export default function App() {
         }
       });
       return () => unsubscribeNotices();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user && messaging) {
+      const setupFCM = async () => {
+        try {
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+            const token = await getToken(messaging, {
+              vapidKey: firebaseConfig.vapidKey
+            });
+            
+            if (token) {
+              console.log('FCM Token:', token);
+              // Subscribe to topic via backend
+              await fetch('/api/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+              });
+            }
+          }
+        } catch (error) {
+          console.error('FCM Setup Error:', error);
+        }
+      };
+
+      setupFCM();
+
+      const unsubscribeMessage = onMessage(messaging, (payload) => {
+        console.log('Foreground Message:', payload);
+        if (payload.notification) {
+          new Notification(payload.notification.title || 'New Notification', {
+            body: payload.notification.body,
+            icon: "https://cdn-icons-png.flaticon.com/512/3119/3119338.png"
+          });
+        }
+      });
+
+      return () => unsubscribeMessage();
     }
   }, [user]);
 

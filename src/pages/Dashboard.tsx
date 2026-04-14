@@ -3,7 +3,7 @@ import { collection, query, orderBy, limit, onSnapshot, doc, where } from 'fireb
 import { db } from '../firebase';
 import { useAuth } from '../App';
 import { AppSettings, FundTransaction, UserProfile, AdminNotice } from '../types';
-import { Wallet, TrendingUp, TrendingDown, Users, Bell, ChevronRight, BarChart3, PieChart as PieChartIcon, Megaphone } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Users, Bell, ChevronRight, BarChart3, PieChart as PieChartIcon, Megaphone, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import {
@@ -221,8 +221,23 @@ export default function Dashboard() {
       </AnimatePresence>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <motion.div 
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: {
+            opacity: 1,
+            transition: { staggerChildren: 0.1 }
+          }
+        }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-4"
+      >
         <motion.div 
+          variants={{
+            hidden: { opacity: 0, y: 20 },
+            visible: { opacity: 1, y: 0 }
+          }}
           whileHover={{ y: -4 }}
           className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700"
         >
@@ -238,6 +253,10 @@ export default function Dashboard() {
         </motion.div>
 
         <motion.div 
+          variants={{
+            hidden: { opacity: 0, y: 20 },
+            visible: { opacity: 1, y: 0 }
+          }}
           whileHover={{ y: -4 }}
           className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700"
         >
@@ -253,6 +272,10 @@ export default function Dashboard() {
         </motion.div>
 
         <motion.div 
+          variants={{
+            hidden: { opacity: 0, y: 20 },
+            visible: { opacity: 1, y: 0 }
+          }}
           whileHover={{ y: -4 }}
           className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700"
         >
@@ -266,6 +289,34 @@ export default function Dashboard() {
             </div>
           </div>
         </motion.div>
+      </motion.div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Link to="/fund" className="bg-blue-600 text-white p-4 rounded-2xl shadow-lg shadow-blue-200 dark:shadow-none flex flex-col items-center gap-2 hover:bg-blue-700 transition-all group">
+          <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
+            <Plus size={20} />
+          </div>
+          <span className="text-xs font-bold">টাকা জমা</span>
+        </Link>
+        <Link to="/voting" className="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 dark:shadow-none flex flex-col items-center gap-2 hover:bg-indigo-700 transition-all group">
+          <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
+            <BarChart3 size={20} />
+          </div>
+          <span className="text-xs font-bold">ভোট দিন</span>
+        </Link>
+        <Link to="/posts" className="bg-emerald-600 text-white p-4 rounded-2xl shadow-lg shadow-emerald-200 dark:shadow-none flex flex-col items-center gap-2 hover:bg-emerald-700 transition-all group">
+          <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
+            <Megaphone size={20} />
+          </div>
+          <span className="text-xs font-bold">পোস্ট করুন</span>
+        </Link>
+        <Link to="/profile" className="bg-slate-800 text-white p-4 rounded-2xl shadow-lg shadow-slate-200 dark:shadow-none flex flex-col items-center gap-2 hover:bg-slate-900 transition-all group">
+          <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
+            <Users size={20} />
+          </div>
+          <span className="text-xs font-bold">প্রোফাইল</span>
+        </Link>
       </div>
 
       {/* Chart Section */}
@@ -313,12 +364,27 @@ export default function Dashboard() {
               সব দেখুন <ChevronRight size={16} />
             </Link>
           </div>
-          <div className="divide-y divide-slate-50 dark:divide-slate-700">
+          <motion.div 
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+            }}
+            className="divide-y divide-slate-50 dark:divide-slate-700"
+          >
             {recentTransactions.length === 0 ? (
               <p className="p-6 text-center text-slate-400 text-sm">কোন লেনদেন পাওয়া যায়নি।</p>
             ) : (
               recentTransactions.map((t) => (
-                <div key={t.id} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                <motion.div 
+                  key={t.id} 
+                  variants={{
+                    hidden: { opacity: 0, x: -10 },
+                    visible: { opacity: 1, x: 0 }
+                  }}
+                  className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                >
                   <div className="flex items-center gap-3">
                     <div className={cn(
                       "p-2 rounded-lg",
@@ -346,10 +412,10 @@ export default function Dashboard() {
                       {t.status === 'approved' ? 'গৃহীত' : t.status === 'pending' ? 'পেন্ডিং' : 'বাতিল'}
                     </span>
                   </div>
-                </div>
+                </motion.div>
               ))
             )}
-          </div>
+          </motion.div>
         </div>
 
         {/* Top Contributors */}

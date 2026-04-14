@@ -54,6 +54,7 @@ export default function AdminPanel() {
           { path: '/admin/expenses', icon: Receipt, label: 'ব্যয়' },
           { path: '/admin/polls', icon: Vote, label: 'ভোট' },
           { path: '/admin/notices', icon: Megaphone, label: 'নোটিশ' },
+          { path: '/admin/push', icon: Bell, label: 'পুশ নোটিফিকেশন' },
           { path: '/admin/posts', icon: MessageSquare, label: 'পোস্ট' },
           { path: '/admin/requests', icon: UserCheck, label: 'প্রোফাইল অনুরোধ' },
           { path: '/admin/settings', icon: Settings, label: 'সেটিংস' },
@@ -81,6 +82,7 @@ export default function AdminPanel() {
         <Route path="/expenses" element={<ExpenseManagement />} />
         <Route path="/polls" element={<Voting />} />
         <Route path="/notices" element={<NoticeManagement />} />
+        <Route path="/push" element={<PushNotificationPanel />} />
         <Route path="/requests" element={<ProfileRequestManagement />} />
         <Route path="/settings" element={<GlobalSettings />} />
       </Routes>
@@ -821,6 +823,21 @@ function NoticeManagement() {
         createdAt: new Date().toISOString(),
         active: true
       });
+
+      // Automatically send push notification
+      try {
+        await fetch('/api/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            title: "নতুন নোটিশ: " + newNotice.title, 
+            body: newNotice.content.substring(0, 100) + "..." 
+          })
+        });
+      } catch (pushErr) {
+        console.error("Push notification failed:", pushErr);
+      }
+
       setShowAddModal(false);
       setNewNotice({ title: '', content: '', type: 'info' });
       alert('নোটিশ পাবলিশ করা হয়েছে।');
@@ -1086,6 +1103,86 @@ function ProfileRequestManagement() {
         </div>
       </div>
     </div>
+  );
+}
+
+function PushNotificationPanel() {
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSend = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch('/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, body })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('নোটিফিকেশন সফলভাবে পাঠানো হয়েছে!');
+        setTitle('');
+        setBody('');
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('নোটিফিকেশন পাঠাতে ব্যর্থ হয়েছে: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 max-w-xl"
+    >
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-2xl text-blue-600 dark:text-blue-400">
+          <Bell size={24} />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">পুশ নোটিফিকেশন পাঠান</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">সকল ইউজারের মোবাইলে সরাসরি নোটিফিকেশন যাবে।</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSend} className="space-y-6">
+        <div>
+          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">টাইটেল</label>
+          <input 
+            type="text" 
+            required
+            placeholder="যেমন: নতুন নোটিশ প্রকাশিত হয়েছে"
+            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">মেসেজ</label>
+          <textarea 
+            required
+            rows={4}
+            placeholder="বিস্তারিত মেসেজ লিখুন..."
+            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 resize-none"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+          />
+        </div>
+        <button 
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {loading ? 'পাঠানো হচ্ছে...' : <><Bell size={20} /> সকল ইউজারকে পাঠান</>}
+        </button>
+      </form>
+    </motion.div>
   );
 }
 
