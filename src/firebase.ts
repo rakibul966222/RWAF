@@ -10,7 +10,7 @@ export const firebaseConfig = {
   storageBucket: "mtxr-d8b90.firebasestorage.app",
   messagingSenderId: "688078973753",
   appId: "1:688078973753:web:c7279cdd8ba04c8e0b56e8",
-  vapidKey: "YOUR_VAPID_KEY_HERE" // User needs to provide this from Firebase Console
+  vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY || "B...Your_Key_From_Firebase_Console" // Use VITE_ prefix for client-side
 };
 
 const app = initializeApp(firebaseConfig);

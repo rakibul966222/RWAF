@@ -1048,7 +1048,7 @@ function NoticeManagement() {
 
       // Automatically send push notification
       try {
-        await fetch('/api/send', {
+        const pushRes = await fetch('/api/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -1056,13 +1056,20 @@ function NoticeManagement() {
             body: newNotice.content.substring(0, 100) + "..." 
           })
         });
+        const pushData = await pushRes.json();
+        if (!pushRes.ok) {
+           console.warn("Push notification warning:", pushData.error);
+           showToast('নোটিশ সেভ হয়েছে কিন্তু পুশ নোটিফিকেশন কাজ করেনি। সেটিংস চেক করুন।', 'info');
+        } else {
+           showToast('নোটিশ এবং পুশ নোটিফিকেশন পাঠানো হয়েছে।');
+        }
       } catch (pushErr) {
-        console.error("Push notification failed:", pushErr);
+        console.error("Push notification network error:", pushErr);
+        showToast('নোটিশ সেভ হয়েছে কিন্তু মেমরি বা নেটওয়ার্ক সমস্যার কারণে পুশ যায়নি।', 'info');
       }
 
       setShowAddModal(false);
       setNewNotice({ title: '', content: '', type: 'info' });
-      showToast('নোটিশ পাবলিশ করা হয়েছে।');
     } catch (err: any) {
       showToast('ব্যর্থ হয়েছে: ' + err.message, 'error');
     } finally {

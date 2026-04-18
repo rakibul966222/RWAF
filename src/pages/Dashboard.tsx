@@ -85,18 +85,6 @@ export default function Dashboard() {
 
       if (latestNoticeTime > lastSeen) {
         setHasNewNotices(true);
-        
-        // Push browser notification if it's the first time we see this specific new notice
-        const lastNotifiedId = localStorage.getItem('last_notified_id');
-        if (sorted.length > 0 && sorted[0].id !== lastNotifiedId) {
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification("নতুন নোটিশ: " + sorted[0].title, {
-              body: sorted[0].content.substring(0, 100) + "...",
-              icon: '/favicon.ico'
-            });
-            localStorage.setItem('last_notified_id', sorted[0].id);
-          }
-        }
       } else {
         setHasNewNotices(false);
       }

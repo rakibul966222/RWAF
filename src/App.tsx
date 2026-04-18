@@ -86,15 +86,10 @@ export default function App() {
       );
       const unsubscribeNotices = onSnapshot(q, (snap) => {
         if (!snap.empty) {
-          const notice = snap.docs[0].data();
-          const lastNoticeId = localStorage.getItem('lastNoticeId');
-          if (lastNoticeId !== snap.docs[0].id) {
-            if (Notification.permission === "granted") {
-              new Notification("নতুন নোটিশ: " + notice.title, {
-                body: notice.content.substring(0, 100) + "...",
-                icon: "https://cdn-icons-png.flaticon.com/512/3119/3119338.png"
-              });
-            }
+          const lastSeenId = localStorage.getItem('lastNoticeId');
+          if (lastSeenId !== snap.docs[0].id) {
+            // Updated: Only set the state to trigger UI badges/red lights.
+            // Push notifications are now handled exclusively by FCM to avoid duplicates.
             localStorage.setItem('lastNoticeId', snap.docs[0].id);
           }
         }
@@ -133,10 +128,16 @@ export default function App() {
       const unsubscribeMessage = onMessage(messaging, (payload) => {
         console.log('Foreground Message:', payload);
         if (payload.notification) {
-          new Notification(payload.notification.title || 'New Notification', {
-            body: payload.notification.body,
-            icon: "https://cdn-icons-png.flaticon.com/512/3119/3119338.png"
+          // Show foreground notification when app is open
+          const { title, body } = payload.notification;
+          new Notification(title || 'নতুন নোটিশ', {
+            body: body,
+            icon: "https://cdn-icons-png.flaticon.com/512/3119/3119338.png",
+            badge: "https://cdn-icons-png.flaticon.com/512/3119/3119338.png"
           });
+          
+          // Also show toast for better visibility
+          showToast(`প্রজ্ঞাপন: ${title}`, 'info');
         }
       });
 
