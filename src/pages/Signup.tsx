@@ -1,16 +1,21 @@
 import React, { useState, useEffect, FormEvent } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../App';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { SubscriptionType } from '../types';
 import { Volume2, VolumeX, UserPlus, Info, CheckCircle, ShieldCheck, Heart, Users, BookOpen, Scale, Award, Flag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '../lib/utils';
 
 export default function Signup() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isCompletingProfile = location.state?.isCompletingProfile || false;
+  const { profile } = useAuth();
+  
+  // Detect if we are completing a profile even if state is lost on refresh
+  const isCompletingProfile = location.state?.isCompletingProfile || (auth.currentUser && !profile?.isProfileComplete);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -101,13 +106,35 @@ export default function Signup() {
       let user = auth.currentUser;
       
       if (!isCompletingProfile) {
-        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-        user = userCredential.user;
-        await updateProfile(user, { displayName: formData.name });
+        // Only try to create a new user if not already authenticated (e.g. via Google or existing login)
+        try {
+          const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+          user = userCredential.user;
+          await updateProfile(user, { displayName: formData.name });
+        } catch (createErr: any) {
+          // If the profile is logically inconsistent but they are trying to fix it, this might happen.
+          // However, we strictly catch 'email-already-in-use' below.
+          throw createErr;
+        }
       }
 
       if (user) {
-        await setDoc(doc(db, 'users', user.uid), {
+        const docRef = doc(db, 'users', user.uid);
+        
+        // Simplified: If authenticated, we just try to save/update the profile.
+        // We only show "Already exists" if they are trying to create a NEW email/password account 
+        // that somehow overlaps with an EXISTING profile.
+        if (!isCompletingProfile) {
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists() && docSnap.data().isProfileComplete) {
+            setError('আপনার প্রোফাইল ইতিমধ্যে তৈরি করা হয়েছে। অনুগ্রহ করে লগইন করুন।');
+            speak('আপনার প্রোফাইল ইতিমধ্যে তৈরি করা হয়েছে।');
+            setLoading(false);
+            return;
+          }
+        }
+
+        await setDoc(docRef, {
           uid: user.uid,
           name: formData.name,
           fatherName: formData.fatherName,
@@ -123,7 +150,6 @@ export default function Signup() {
           subscriptionType: formData.subscriptionType,
           mobileNo: formData.mobileNo,
           fbId: formData.fbId,
-          category: formData.category,
           email: formData.email,
           role: 'user',
           status: 'active',
@@ -132,7 +158,7 @@ export default function Signup() {
           joinDate: formData.joinDate,
           createdAt: serverTimestamp(),
           isProfileComplete: true,
-        });
+        }, { merge: true });
 
         setShowWelcome(true);
         speak('অভিনন্দন! রামনগর যুব-কল্যান ফাউন্ডেশনে আপনাকে স্বাগতম।');
@@ -141,9 +167,13 @@ export default function Signup() {
         }, 3000);
       }
     } catch (err: any) {
-      setError('রেজিস্ট্রেশন ব্যর্থ হয়েছে। ইমেইলটি ইতিমধ্যে ব্যবহৃত হতে পারে।');
-      speak('রেজিস্ট্রেশন ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
       console.error(err);
+      if (err.code === 'auth/email-already-in-use') {
+        setError('ইমেইলটি ইতিমধ্যেই ব্যবহৃত হচ্ছে। অনুগ্রহ করে লগইন করুন।');
+      } else {
+        setError('রেজিস্ট্রেশন ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
+      }
+      speak('রেজিস্ট্রেশন ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
     } finally {
       setLoading(false);
     }
@@ -164,7 +194,7 @@ export default function Signup() {
           <p className="text-slate-600 dark:text-slate-400 text-lg mb-8">
             রামনগর যুব-কল্যান ফাউন্ডেশনে আপনাকে স্বাগতম। আপনার সদস্যপদ সফলভাবে নিবন্ধিত হয়েছে।
           </p>
-          <div className="animate-pulse text-blue-600 dark:text-blue-400 font-bold">
+          <div className="animate-pulse text-indigo-600 dark:text-indigo-400 font-bold">
             ড্যাশবোর্ডে নিয়ে যাওয়া হচ্ছে...
           </div>
         </motion.div>
@@ -173,37 +203,51 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 py-8 md:py-12 px-4 transition-colors duration-300">
+    <div className="min-h-screen py-20 px-4 relative overflow-hidden bg-slate-900">
+      {/* Background Elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] bg-indigo-600/5 blur-[100px] rounded-full" />
+        <div className="absolute bottom-[-5%] right-[-5%] w-[40%] h-[40%] bg-purple-600/5 blur-[100px] rounded-full" />
+      </div>
+
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-3xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-700"
+        className="max-w-5xl mx-auto glass rounded-3xl overflow-hidden shadow-2xl relative z-10"
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 md:p-8 text-white flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight">সদস্য ভর্তি ফরম</h1>
-            <p className="text-blue-100 font-medium mt-1">রামনগর যুব-কল্যান ফাউন্ডেশন</p>
+        <div className="bg-gradient-to-r from-indigo-700 to-purple-800 p-8 md:p-12 text-white flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden">
+          <div className="relative z-10 text-center md:text-left">
+            <h1 className="text-3xl md:text-4xl font-black uppercase">সদস্য ভর্তি ফরম</h1>
+            <p className="text-indigo-200 font-bold uppercase text-xs mt-2">রামনগর যুব-কল্যান ফাউন্ডেশন</p>
           </div>
+          
           <button 
             onClick={() => {
               setIsTtsEnabled(!isTtsEnabled);
               if (!isTtsEnabled) speak('ভয়েস গাইড চালু করা হয়েছে।');
             }}
-            className={`p-3 rounded-2xl transition-all duration-300 ${isTtsEnabled ? 'bg-white text-blue-600 shadow-lg scale-110' : 'bg-white/20 text-white hover:bg-white/30'}`}
+            className={cn(
+              "relative z-10 p-4 rounded-2xl transition-all duration-300 border",
+              isTtsEnabled 
+                ? "bg-white text-indigo-700 border-white shadow-lg" 
+                : "bg-white/10 text-white border-white/10 hover:bg-white/20"
+            )}
             title={isTtsEnabled ? "ভয়েস বন্ধ করুন" : "ভয়েস চালু করুন"}
           >
             {isTtsEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
           </button>
         </div>
 
-        <div className="p-6 md:p-10">
+        <div className="p-8 md:p-14">
           {/* Goals and Objectives */}
-          <div className="mb-10 bg-blue-50/50 dark:bg-blue-900/10 rounded-3xl p-6 md:p-8 border border-blue-100 dark:border-blue-900/30">
-            <h2 className="text-xl font-bold text-blue-900 dark:text-blue-100 mb-6 flex items-center gap-3">
-              <Flag className="text-blue-600 dark:text-blue-400" /> লক্ষ্য ও উদ্দেশ্য
+          <div 
+            className="mb-16 glass rounded-3xl p-8 md:p-12 border border-white/5 relative overflow-hidden"
+          >
+            <h2 className="text-2xl font-black text-white mb-10 flex items-center gap-4 uppercase">
+              <Flag className="text-indigo-400" size={32} /> লক্ষ্য ও উদ্দেশ্য
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {[
                 { icon: Users, text: "সামাজিক কর্মকান্ড পরিচালনা করা।" },
                 { icon: ShieldCheck, text: "মাদকের বিরুদ্ধে জনসচেতনতা সৃষ্টি করা।" },
@@ -214,11 +258,14 @@ export default function Signup() {
                 { icon: BookOpen, text: "সাহিত্য, সংস্কৃতি, ক্রীড়া ও বিনোদন উৎসাহিত করা।" },
                 { icon: Scale, text: "মানবাধিকার রক্ষা ও ন্যায়বিচার প্রতিষ্ঠা করা।" }
               ].map((goal, i) => (
-                <div key={i} className="flex items-start gap-3 text-slate-700 dark:text-slate-300">
-                  <div className="mt-1 p-1 bg-white dark:bg-slate-700 rounded-lg text-blue-600 dark:text-blue-400 shadow-sm">
-                    <goal.icon size={14} />
+                <div 
+                  key={i} 
+                  className="flex items-start gap-4 text-slate-400"
+                >
+                  <div className="mt-1 p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400">
+                    <goal.icon size={18} />
                   </div>
-                  <span className="text-sm font-medium leading-relaxed">{goal.text}</span>
+                  <span className="text-sm font-bold tracking-tight">{goal.text}</span>
                 </div>
               ))}
             </div>
@@ -226,142 +273,142 @@ export default function Signup() {
 
           {error && (
             <motion.div 
-              initial={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-2xl mb-8 text-sm font-bold border border-red-100 dark:border-red-900/30 flex items-center gap-3"
+              className="bg-rose-500/10 text-rose-400 p-6 rounded-2xl mb-12 text-sm font-bold border border-rose-500/20 flex items-center gap-4"
             >
-              <div className="w-2 h-2 bg-red-600 dark:bg-red-400 rounded-full animate-ping" />
+              <div className="w-3 h-3 bg-rose-500 rounded-full animate-pulse" />
               {error}
             </motion.div>
           )}
 
-          <form onSubmit={handleSignup} className="space-y-10">
+          <form onSubmit={handleSignup} className="space-y-16">
             {/* Personal Info */}
-            <section>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
-                <div className="w-2 h-6 bg-blue-600 dark:bg-blue-400 rounded-full" /> সদস্যের প্রয়োজনীয় তথ্যাদি
+            <section className="space-y-8">
+              <h3 className="text-xl font-black text-white mb-8 flex items-center gap-4 uppercase">
+                <div className="w-2 h-8 bg-indigo-500 rounded-full" /> সদস্যের প্রয়োজনীয় তথ্যাদি
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">সদস্যের নাম *</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="md:col-span-2 space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">সদস্যের নাম *</label>
                   <input
                     type="text"
                     required
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold placeholder:text-slate-700"
                     value={formData.name || ''}
                     onFocus={() => handleFocus('name')}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">পিতার নাম *</label>
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">পিতার নাম *</label>
                   <input
                     type="text"
                     required
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold"
                     value={formData.fatherName || ''}
                     onFocus={() => handleFocus('fatherName')}
                     onChange={(e) => setFormData({...formData, fatherName: e.target.value})}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">মাতার নাম *</label>
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">মাতার নাম *</label>
                   <input
                     type="text"
                     required
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold"
                     value={formData.motherName || ''}
                     onFocus={() => handleFocus('motherName')}
                     onChange={(e) => setFormData({...formData, motherName: e.target.value})}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">জন্ম তারিখ *</label>
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">জন্ম তারিখ *</label>
                   <input
                     type="date"
                     required
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold [color-scheme:dark]"
                     value={formData.dob || ''}
                     onFocus={() => handleFocus('dob')}
                     onChange={(e) => setFormData({...formData, dob: e.target.value})}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">ধর্ম *</label>
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">ধর্ম *</label>
                   <select
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold appearance-none cursor-pointer"
                     value={formData.religion || 'Islam'}
                     onFocus={() => handleFocus('religion')}
                     onChange={(e) => setFormData({...formData, religion: e.target.value})}
                   >
-                    <option value="Islam">ইসলাম</option>
-                    <option value="Hindu">হিন্দু</option>
-                    <option value="Christian">খ্রিস্টান</option>
-                    <option value="Buddhist">বৌদ্ধ</option>
-                    <option value="Other">অন্যান্য</option>
+                    <option value="Islam" className="bg-slate-900">ইসলাম</option>
+                    <option value="Hindu" className="bg-slate-900">হিন্দু</option>
+                    <option value="Christian" className="bg-slate-900">খ্রিস্টান</option>
+                    <option value="Buddhist" className="bg-slate-900">বৌদ্ধ</option>
+                    <option value="Other" className="bg-slate-900">অন্যান্য</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">পেশা *</label>
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">পেশা *</label>
                   <input
                     type="text"
                     required
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold"
                     value={formData.profession || ''}
                     onFocus={() => handleFocus('profession')}
                     onChange={(e) => setFormData({...formData, profession: e.target.value})}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">রক্তের গ্রুপ *</label>
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">রক্তের গ্রুপ *</label>
                   <select
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold appearance-none cursor-pointer"
                     value={formData.bloodGroup || 'O+'}
                     onFocus={() => handleFocus('bloodGroup')}
                     onChange={(e) => setFormData({...formData, bloodGroup: e.target.value})}
                   >
                     {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => (
-                      <option key={bg} value={bg}>{bg}</option>
+                      <option key={bg} value={bg} className="bg-slate-900">{bg}</option>
                     ))}
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">বৈবাহিক অবস্থা *</label>
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">বৈবাহিক অবস্থা *</label>
                   <select
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold appearance-none cursor-pointer"
                     value={formData.maritalStatus || 'Single'}
                     onFocus={() => handleFocus('maritalStatus')}
                     onChange={(e) => setFormData({...formData, maritalStatus: e.target.value})}
                   >
-                    <option value="Single">অবিবাহিত</option>
-                    <option value="Married">বিবাহিত</option>
-                    <option value="Other">অন্যান্য</option>
+                    <option value="Single" className="bg-slate-900">অবিবাহিত</option>
+                    <option value="Married" className="bg-slate-900">বিবাহিত</option>
+                    <option value="Other" className="bg-slate-900">অন্যান্য</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">জাতীয় পরিচয় পত্র নং (ঐচ্ছিক)</label>
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">জাতীয় পরিচয় পত্র নং (ঐচ্ছিক)</label>
                   <input
                     type="text"
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold"
                     value={formData.nid || ''}
                     onFocus={() => handleFocus('nid')}
                     onChange={(e) => setFormData({...formData, nid: e.target.value})}
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">ঠিকানা *</label>
+                <div className="md:col-span-2 space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">ঠিকানা *</label>
                   <textarea
                     required
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all h-28 resize-none text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-6 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all h-32 resize-none text-white font-bold"
                     value={formData.address || ''}
                     onFocus={() => handleFocus('address')}
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
@@ -371,65 +418,65 @@ export default function Signup() {
             </section>
 
             {/* Subscription Info */}
-            <section>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
-                <div className="w-2 h-6 bg-indigo-600 dark:bg-indigo-400 rounded-full" /> চাঁদা ও সদস্যপদ
+            <section className="space-y-8">
+              <h3 className="text-xl font-black text-white mb-8 flex items-center gap-4 uppercase">
+                <div className="w-2 h-8 bg-purple-500 rounded-full" /> চাঁদা ও সদস্যপদ
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">চাঁদার পরিমান (৳) *</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">চাঁদার পরিমান (৳) *</label>
                   <input
                     type="number"
                     required
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold"
                     value={formData.subscriptionAmount ?? 100}
                     onFocus={() => handleFocus('subscriptionAmount')}
                     onChange={(e) => setFormData({...formData, subscriptionAmount: Number(e.target.value)})}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">চাঁদার ধরণ *</label>
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">চাঁদার ধরণ *</label>
                   <select
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold appearance-none cursor-pointer"
                     value={formData.subscriptionType || 'monthly'}
                     onFocus={() => handleFocus('subscriptionType')}
                     onChange={(e) => setFormData({...formData, subscriptionType: e.target.value as SubscriptionType})}
                   >
-                    <option value="monthly">মাসিক</option>
-                    <option value="yearly">বাৎসরিক</option>
+                    <option value="monthly" className="bg-slate-900">মাসিক</option>
+                    <option value="yearly" className="bg-slate-900">বাৎসরিক</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">মোবাইল নং *</label>
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">মোবাইল নং *</label>
                   <input
                     type="tel"
                     required
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold"
                     value={formData.mobileNo || ''}
                     onFocus={() => handleFocus('mobileNo')}
                     onChange={(e) => setFormData({...formData, mobileNo: e.target.value})}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">ফেসবুক আইডি (ঐচ্ছিক)</label>
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">ফেসবুক আইডি (ঐচ্ছিক)</label>
                   <input
                     type="text"
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold"
                     value={formData.fbId || ''}
                     onFocus={() => handleFocus('fbId')}
                     onChange={(e) => setFormData({...formData, fbId: e.target.value})}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">সদস্য হওয়ার তারিখ *</label>
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase ml-1">সদস্য হওয়ার তারিখ *</label>
                   <input
                     type="date"
                     required
-                    className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold [color-scheme:dark]"
                     value={formData.joinDate || ''}
                     onFocus={() => handleFocus('joinDate')}
                     onChange={(e) => setFormData({...formData, joinDate: e.target.value})}
@@ -440,42 +487,42 @@ export default function Signup() {
 
             {/* Login Info (Only for new registrations) */}
             {!isCompletingProfile && (
-              <section>
-                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
-                  <div className="w-2 h-6 bg-slate-900 dark:bg-slate-100 rounded-full" /> লগইন তথ্য
+              <section className="space-y-8">
+                <h3 className="text-xl font-black text-white mb-8 flex items-center gap-4 uppercase">
+                  <div className="w-2 h-8 bg-pink-500 rounded-full" /> লগইন তথ্য
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">ইমেইল *</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="block text-xs font-bold text-slate-500 uppercase ml-1">ইমেইল *</label>
                     <input
                       type="email"
                       required
-                      className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                      className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold"
                       value={formData.email || ''}
                       onFocus={() => handleFocus('email')}
                       onChange={(e) => setFormData({...formData, email: e.target.value})}
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">পাসওয়ার্ড *</label>
+                  <div className="space-y-3">
+                    <label className="block text-xs font-bold text-slate-500 uppercase ml-1">পাসওয়ার্ড *</label>
                     <input
                       type="password"
                       required
                       minLength={6}
-                      className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                      className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold"
                       value={formData.password || ''}
                       onFocus={() => handleFocus('password')}
                       onChange={(e) => setFormData({...formData, password: e.target.value})}
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">পাসওয়ার্ড নিশ্চিত করুন *</label>
+                  <div className="space-y-3">
+                    <label className="block text-xs font-bold text-slate-500 uppercase ml-1">পাসওয়ার্ড নিশ্চিত করুন *</label>
                     <input
                       type="password"
                       required
-                      className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                      className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white font-bold"
                       value={formData.confirmPassword || ''}
                       onFocus={() => handleFocus('confirmPassword')}
                       onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
@@ -486,13 +533,13 @@ export default function Signup() {
             )}
 
             {/* Pledge Section */}
-            <section className="bg-slate-900 dark:bg-slate-950 rounded-3xl p-6 md:p-10 text-white border border-slate-800">
-              <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
-                <Award className="text-blue-400" /> অঙ্গীকারনামা
+            <section className="glass rounded-3xl p-8 md:p-14 text-white border border-white/5 relative overflow-hidden">
+              <h3 className="text-2xl font-black mb-10 flex items-center gap-4 uppercase">
+                <Award className="text-indigo-400" size={32} /> অঙ্গীকারনামা
               </h3>
-              <div className="space-y-4 text-slate-300 text-sm md:text-base leading-relaxed text-justify">
+              <div className="space-y-6 text-slate-400 text-base md:text-lg leading-relaxed text-justify font-bold transition-all">
                 <p>
-                  আমি <span className="text-white font-bold underline px-1">{formData.name || '.....'}</span> এই মর্মে অঙ্গীকার করিতেছি যে, রামনগর যুব-কল্যান ফাউন্ডেশনের লক্ষ্য ও উদ্দেশ্যের প্রতি পূর্ণ আস্থা ও বিশ্বাস নিয়ে সদস্য হওয়ার জন্য আবেদন করিতেছি।
+                  আমি <span className="text-white font-black underline decoration-indigo-500 decoration-4 underline-offset-8 px-2 bg-white/5 rounded-md">{formData.name || '.....'}</span> এই মর্মে অঙ্গীকার করিতেছি যে, রামনগর যুব-কল্যান ফাউন্ডেশনের লক্ষ্য ও উদ্দেশ্যের প্রতি পূর্ণ আস্থা ও বিশ্বাস নিয়ে সদস্য হওয়ার জন্য আবেদন করিতেছি।
                 </p>
                 <p>
                   আমি আরো অঙ্গীকার করিতেছি যে, রামনগর যুব-কল্যান ফাউন্ডেশনের স্বার্থ পরিপন্থী কোন কাজ করিব না। অত্র সংগঠনের নির্বাহী ও কার্য পরিষদ কর্তৃক যে কোন কর্মসূচি ও কর্মপদ্ধতি বাস্তবায়নের লক্ষ্যে আমি কাজ করিব।
@@ -502,7 +549,7 @@ export default function Signup() {
                 </p>
               </div>
 
-              <label className="mt-8 flex items-center gap-4 cursor-pointer group">
+              <label className="mt-12 flex items-center gap-6 cursor-pointer group">
                 <div className="relative">
                   <input 
                     type="checkbox" 
@@ -511,24 +558,26 @@ export default function Signup() {
                     onChange={(e) => setAgreedToPledge(e.target.checked)}
                     onFocus={() => handleFocus('pledge')}
                   />
-                  <div className="w-6 h-6 border-2 border-slate-600 rounded-lg peer-checked:bg-blue-600 peer-checked:border-blue-600 transition-all" />
-                  <CheckCircle size={16} className="absolute top-1 left-1 text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                  <div className="w-8 h-8 border-2 border-white/10 rounded-xl peer-checked:bg-indigo-600 peer-checked:border-indigo-600 transition-all group-hover:border-indigo-400" />
+                  <CheckCircle size={20} className="absolute top-1.5 left-1.5 text-white opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" />
                 </div>
-                <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">আমি সকল শর্তাবলীতে সম্মতি দিচ্ছি</span>
+                <span className="text-sm font-bold text-slate-500 group-hover:text-white transition-colors">আমি সকল শর্তাবলীতে সম্মতি দিচ্ছি</span>
               </label>
             </section>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-lg hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all flex items-center justify-center gap-3 active:scale-95"
+              className="w-full bg-indigo-600 text-white py-6 rounded-2xl font-black text-xl shadow-xl transition-all flex items-center justify-center gap-4 uppercase border border-white/10"
             >
               {loading ? (
-                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <><UserPlus size={24} /> {isCompletingProfile ? 'প্রোফাইল সম্পন্ন করুন' : 'রেজিস্ট্রেশন সম্পন্ন করুন'}</>
+                <><UserPlus size={28} /> {isCompletingProfile ? 'প্রোফাইল সম্পন্ন করুন' : 'রেজিস্ট্রেশন সম্পন্ন করুন'}</>
               )}
-            </button>
+            </motion.button>
           </form>
         </div>
       </motion.div>

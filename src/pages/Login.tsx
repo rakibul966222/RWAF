@@ -50,44 +50,49 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+    <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-slate-950">
+      {/* Animated Background Elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 blur-[120px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full animate-pulse delay-700" />
+      </div>
+
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl shadow-blue-100 dark:shadow-none overflow-hidden border border-slate-100 dark:border-slate-700"
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-xl glass overflow-hidden shadow-2xl border border-white/5 relative z-10 rounded-3xl"
       >
-        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-10 text-white text-center">
-          <motion.div 
-            initial={{ y: -20 }}
-            animate={{ y: 0 }}
-            className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl"
-          >
-            <Shield size={40} className="text-white" />
-          </motion.div>
-          <h1 className="text-3xl font-black tracking-tight mb-2">স্বাগতম</h1>
-          <p className="text-blue-100 font-medium">রামনগর যুব-কল্যান ফাউন্ডেশন</p>
+        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 p-12 text-white text-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-white/5" />
+          
+          <div className="w-24 h-24 bg-white/10 backdrop-blur-xl rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl border border-white/20">
+            <Shield size={48} className="text-white" />
+          </div>
+          <h1 className="text-4xl font-black mb-2 uppercase">স্বাগতম</h1>
+          <p className="text-indigo-100 font-bold uppercase text-xs mt-2 opacity-80">রামনগর যুব-কল্যান ফাউন্ডেশন</p>
         </div>
 
         <div className="p-10">
           {error && (
             <motion.div 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-2xl mb-6 text-sm font-bold border border-red-100 dark:border-red-900/30"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="bg-rose-500/10 text-rose-400 p-4 rounded-2xl mb-8 text-xs font-bold border border-rose-500/20 text-center uppercase"
             >
               {error}
             </motion.div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">ইমেইল এড্রেস</label>
+          <form onSubmit={handleLogin} className="space-y-8">
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-500 uppercase ml-2">ইমেইল এড্রেস</label>
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400 transition-colors" size={20} />
+                <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
                 <input
                   type="email"
                   required
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                  className="w-full pl-14 pr-6 py-5 glass border border-white/10 rounded-2xl focus:border-indigo-500/50 outline-none transition-all text-white font-bold placeholder:text-slate-700"
                   placeholder="example@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -95,19 +100,19 @@ export default function Login() {
               </div>
             </div>
 
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">পাসওয়ার্ড</label>
-                <Link to="/forgot-password" title="পাসওয়ার্ড ভুলে গেছেন?" className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
-                  <KeyRound size={12} /> ভুলে গেছেন?
+            <div className="space-y-3">
+              <div className="flex justify-between items-center ml-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase">পাসওয়ার্ড</label>
+                <Link to="/forgot-password" title="পাসওয়ার্ড ভুলে গেছেন?" className="text-xs font-bold text-indigo-400 uppercase hover:text-indigo-300 transition-colors">
+                  ভুলে গেছেন?
                 </Link>
               </div>
               <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400 transition-colors" size={20} />
+                <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
                 <input
                   type="password"
                   required
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-950 outline-none transition-all text-slate-800 dark:text-slate-100"
+                  className="w-full pl-14 pr-6 py-5 glass border border-white/10 rounded-2xl focus:border-indigo-500/50 outline-none transition-all text-white font-bold placeholder:text-slate-700"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -115,39 +120,43 @@ export default function Login() {
               </div>
             </div>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-lg hover:bg-blue-700 shadow-xl shadow-blue-200 dark:shadow-none transition-all flex items-center justify-center gap-2 active:scale-95"
+              className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-bold text-lg shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-3 uppercase border border-white/10"
             >
               {loading ? (
                 <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <><LogIn size={22} /> লগইন করুন</>
+                <><LogIn size={24} /> লগইন করুন</>
               )}
-            </button>
+            </motion.button>
           </form>
 
-          <div className="relative my-8">
+          <div className="relative my-10">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
+              <div className="w-full border-t border-white/5"></div>
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-medium">অথবা</span>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-6 bg-slate-950 text-slate-600 font-bold uppercase">অথবা</span>
             </div>
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200 py-4 rounded-2xl font-bold hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-200 dark:hover:border-slate-600 transition-all flex items-center justify-center gap-3 active:scale-95"
+            className="w-full glass border border-white/10 text-white py-5 rounded-2xl font-bold hover:bg-white/5 transition-all flex items-center justify-center gap-4 uppercase text-xs"
           >
-            <Chrome size={22} className="text-red-500" /> গুগল দিয়ে লগইন
-          </button>
+            <Chrome size={24} className="text-rose-500" /> গুগল দিয়ে লগইন
+          </motion.button>
 
-          <p className="mt-10 text-center text-slate-500 dark:text-slate-400 font-medium">
+          <p className="mt-12 text-center text-slate-500 font-bold text-xs">
             অ্যাকাউন্ট নেই? {' '}
-            <Link to="/signup" className="text-blue-600 dark:text-blue-400 font-black hover:underline inline-flex items-center gap-1">
+            <Link to="/signup" className="text-indigo-400 font-bold hover:text-indigo-300 transition-all inline-flex items-center gap-2 uppercase text-xs ml-2">
               রেজিস্ট্রেশন করুন <ArrowRight size={16} />
             </Link>
           </p>

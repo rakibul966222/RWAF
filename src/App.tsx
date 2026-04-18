@@ -9,7 +9,10 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, onSnapshot, collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { getToken, onMessage } from 'firebase/messaging';
 import { auth, db, messaging, firebaseConfig } from './firebase';
+import { CheckCircle2, XCircle, Bell } from 'lucide-react';
+import { cn } from './lib/utils';
 import { UserProfile } from './types';
+import { motion, AnimatePresence } from 'motion/react';
 
 // Pages
 import Login from './pages/Login';
@@ -30,6 +33,8 @@ interface AuthContextType {
   loading: boolean;
   darkMode: boolean;
   setDarkMode: (val: boolean) => void;
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  showConfirm: (message: string, onConfirm: () => void) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({ 
@@ -37,7 +42,9 @@ const AuthContext = createContext<AuthContextType>({
   profile: null, 
   loading: true,
   darkMode: false,
-  setDarkMode: () => {}
+  setDarkMode: () => {},
+  showToast: () => {},
+  showConfirm: () => {}
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -48,6 +55,18 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
   const location = useLocation();
+
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
+  const [confirm, setConfirm] = useState<{ message: string, onConfirm: () => void } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const showConfirm = (message: string, onConfirm: () => void) => {
+    setConfirm({ message, onConfirm });
+  };
 
   useEffect(() => {
     if (darkMode) {
@@ -180,8 +199,71 @@ export default function App() {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, darkMode, setDarkMode }}>
+    <AuthContext.Provider value={{ user, profile, loading, darkMode, setDarkMode, showToast, showConfirm }}>
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300">
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.9 }}
+              className={cn(
+                "fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-2xl border backdrop-blur-xl flex items-center gap-4",
+                toast.type === 'success' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+                toast.type === 'error' ? "bg-rose-500/10 border-rose-500/20 text-rose-400" :
+                "bg-indigo-500/10 border-indigo-500/20 text-indigo-400"
+              )}
+            >
+              {toast.type === 'success' && <CheckCircle2 size={20} />}
+              {toast.type === 'error' && <XCircle size={20} />}
+              {toast.type === 'info' && <Bell size={20} />}
+              {toast.message}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {confirm && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setConfirm(null)}
+                className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="relative w-full max-w-md glass p-8 border border-white/10 shadow-2xl text-center rounded-3xl"
+              >
+                <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-amber-500/20">
+                  <Bell size={32} />
+                </div>
+                <h3 className="text-xl font-black text-white mb-3 uppercase tracking-tight">নিশ্চিত করুন</h3>
+                <p className="text-slate-400 font-bold mb-8 leading-relaxed text-sm">{confirm.message}</p>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setConfirm(null)}
+                    className="flex-1 px-6 py-4 rounded-xl border border-white/10 text-slate-500 font-bold uppercase text-xs hover:bg-white/5 transition-all text-white"
+                  >
+                    বাতিল
+                  </button>
+                  <button 
+                    onClick={() => {
+                      confirm.onConfirm();
+                      setConfirm(null);
+                    }}
+                    className="flex-1 px-6 py-4 rounded-xl bg-indigo-600 text-white font-bold uppercase text-xs shadow-lg shadow-indigo-600/20 transition-all"
+                  >
+                    হ্যাঁ, নিশ্চিত
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
         {user && profile?.isProfileComplete && <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />}
         <main className={user && profile?.isProfileComplete ? "pt-24 pb-24 px-4 max-w-7xl mx-auto" : ""}>
           <Routes>
