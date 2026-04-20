@@ -255,14 +255,16 @@ export default function App() {
             </div>
           )}
         </AnimatePresence>
-        {user && profile?.isProfileComplete && <Navbar />}
-        <main className={user && profile?.isProfileComplete ? "pt-6 md:pt-32 pb-32 px-4 max-w-7xl mx-auto" : ""}>
+        {/* We ALWAYS show Navbar, except on pure auth pages if not logged in. */}
+        {((user && profile?.isProfileComplete) || (!user && !isAuthPage)) && <Navbar />}
+        <main className={((user && profile?.isProfileComplete) || (!user && !isAuthPage)) ? "pt-6 md:pt-32 pb-32 px-4 max-w-7xl mx-auto" : ""}>
           <Routes>
             <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
             <Route path="/signup" element={(!user || !profile?.isProfileComplete) ? <Signup /> : <Navigate to="/" />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             
-            <Route path="/" element={user && profile?.isProfileComplete ? <Dashboard /> : <Navigate to="/login" />} />
+            {/* Dashboard is public now */}
+            <Route path="/" element={<Dashboard />} />
             <Route path="/fund" element={user && profile?.isProfileComplete ? <FundManagement /> : <Navigate to="/login" />} />
             <Route path="/voting" element={user && profile?.isProfileComplete ? <Voting /> : <Navigate to="/login" />} />
             <Route path="/posts" element={user && profile?.isProfileComplete ? <Posts /> : <Navigate to="/login" />} />

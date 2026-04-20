@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasUnreadNotices, setHasUnreadNotices] = useState(false);
 
@@ -74,7 +74,7 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-1 bg-white/5 p-1.5 rounded-[1.8rem] border border-white/5 relative z-10">
-          {navItems.map((item) => {
+          {navItems.filter(item => user || item.path === '/').map((item) => {
             const active = isActive(item.path);
             return (
               <Link
@@ -103,22 +103,34 @@ export default function Navbar() {
         </div>
 
         <div className="ml-auto flex items-center gap-4 relative z-10">
-          <motion.button
-            whileHover={{ scale: 1.05, x: 5 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-6 py-3 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-2xl transition-all font-black text-xs uppercase border border-rose-500/20 shadow-lg shadow-rose-500/10"
-          >
-            <LogOut size={18} />
-            লগআউট
-          </motion.button>
+          {user ? (
+            <motion.button
+              whileHover={{ scale: 1.05, x: 5 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-6 py-3 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-2xl transition-all font-black text-xs uppercase border border-rose-500/20 shadow-lg shadow-rose-500/10"
+            >
+              <LogOut size={18} />
+              লগআউট
+            </motion.button>
+          ) : (
+             <motion.button
+              whileHover={{ scale: 1.05, x: 5 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/login')}
+              className="flex items-center gap-3 px-6 py-3 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 rounded-2xl transition-all font-black text-xs uppercase border border-indigo-500/20 shadow-lg shadow-indigo-500/10"
+            >
+              <User size={18} />
+              লগইন করুন
+            </motion.button>
+          )}
         </div>
       </nav>
 
       {/* Mobile Bottom Navbar */}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] glass h-20 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 flex md:hidden items-center justify-around px-2 border-white/10 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/5 to-transparent pointer-events-none" />
-        {navItems.filter(item => ['/', '/fund', '/voting', '/posts'].includes(item.path)).map((item) => {
+        {navItems.filter(item => (user || item.path === '/') && ['/', '/fund', '/voting', '/posts'].includes(item.path)).map((item) => {
           const active = isActive(item.path);
           return (
             <Link
@@ -200,7 +212,7 @@ export default function Navbar() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 mb-8 relative z-10">
-                {navItems.map((item) => (
+                {navItems.filter(item => user || item.path === '/').map((item) => (
                   <Link
                     key={item.path}
                     to={item.path}
@@ -219,16 +231,29 @@ export default function Navbar() {
               </div>
 
               <div className="space-y-3 relative z-10">
-                <motion.button
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-4 p-5 bg-rose-500/10 text-rose-400 rounded-[1.8rem] font-black text-xs uppercase border border-rose-500/20 shadow-lg shadow-rose-500/5"
-                >
-                  <div className="p-2 bg-rose-500/20 rounded-xl">
-                    <LogOut size={18} />
-                  </div>
-                  <span>লগআউট করুন</span>
-                </motion.button>
+                {user ? (
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-4 p-5 bg-rose-500/10 text-rose-400 rounded-[1.8rem] font-black text-xs uppercase border border-rose-500/20 shadow-lg shadow-rose-500/5"
+                  >
+                    <div className="p-2 bg-rose-500/20 rounded-xl">
+                      <LogOut size={18} />
+                    </div>
+                    <span>লগআউট করুন</span>
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => navigate('/login')}
+                    className="w-full flex items-center gap-4 p-5 bg-indigo-500/10 text-indigo-400 rounded-[1.8rem] font-black text-xs uppercase border border-indigo-500/20 shadow-lg shadow-indigo-500/5"
+                  >
+                    <div className="p-2 bg-indigo-500/20 rounded-xl">
+                      <User size={18} />
+                    </div>
+                    <span>লগইন করুন</span>
+                  </motion.button>
+                )}
               </div>
             </motion.div>
           </motion.div>

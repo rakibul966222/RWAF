@@ -20,7 +20,7 @@ import {
   Filler
 } from 'chart.js';
 import { Line, Bar, Pie } from 'react-chartjs-2';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 
 ChartJS.register(
@@ -37,7 +37,8 @@ ChartJS.register(
 );
 
 export default function Dashboard() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<FundTransaction[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -276,7 +277,7 @@ export default function Dashboard() {
             animate={{ opacity: 1, x: 0 }}
             className="text-2xl md:text-5xl font-black text-white uppercase relative leading-tight"
           >
-            স্বাগতম, <span className="text-gradient drop-shadow-[0_0_15px_rgba(99,102,241,0.3)]">{profile?.name}</span>!
+            স্বাগতম{profile ? <>, <span className="text-gradient drop-shadow-[0_0_15px_rgba(99,102,241,0.3)]">{profile.name}</span></> : ', অতিথি'}!
           </motion.h1>
           <p className="text-slate-500 text-[10px] md:text-xs font-black uppercase mt-2 opacity-80 flex items-center gap-2">
             <span className="w-6 md:w-8 h-[1px] bg-indigo-500/50" />
@@ -427,8 +428,10 @@ export default function Dashboard() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ delay: 0.4 + i * 0.1 }}
           >
-            <Link to={action.to} className={cn(
-              "relative h-32 md:h-48 rounded-[2rem] md:rounded-[3.5rem] overflow-hidden flex flex-col items-center justify-center gap-3 md:gap-5 transition-all hover:scale-105 active:scale-95 group border border-white/10",
+            <div 
+              onClick={() => navigate(user ? action.to : '/login')}
+              className={cn(
+              "relative h-32 md:h-48 rounded-[2rem] md:rounded-[3.5rem] overflow-hidden flex flex-col items-center justify-center gap-3 md:gap-5 transition-all hover:scale-105 active:scale-95 group border border-white/10 cursor-pointer",
               "bg-gradient-to-br", action.color, action.shadow
             )}>
               <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -437,7 +440,7 @@ export default function Dashboard() {
                 <action.icon size={24} className="md:w-8 md:h-8 text-white" />
               </div>
               <span className="text-[10px] md:text-xs font-black text-white uppercase relative z-10 drop-shadow-md">{action.label}</span>
-            </Link>
+            </div>
           </motion.div>
         ))}
       </div>
@@ -529,12 +532,12 @@ export default function Dashboard() {
                 <p className="text-[10px] md:text-xs font-black text-slate-500 uppercase mt-1">সর্বশেষ ১০টি ট্রানজেকশন</p>
               </div>
             </div>
-            <Link to="/transactions" className="group/link flex items-center gap-2 text-indigo-400 text-[10px] md:text-xs font-black uppercase hover:text-indigo-300 transition-all">
+            <div onClick={() => navigate(user ? '/transactions' : '/login')} className="group/link flex items-center gap-2 text-indigo-400 text-[10px] md:text-xs font-black uppercase hover:text-indigo-300 transition-all cursor-pointer">
               সব দেখুন 
               <div className="p-1.5 md:p-2 bg-indigo-500/10 rounded-xl group-hover/link:translate-x-1 transition-transform">
                 <ChevronRight size={16} className="md:w-5 md:h-5" />
               </div>
-            </Link>
+            </div>
           </div>
           <div className="divide-y divide-white/5">
             {recentTransactions.length === 0 ? (
