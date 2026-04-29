@@ -253,6 +253,86 @@ function UserManagement() {
     });
   };
 
+  const importBulkUsers = async () => {
+    showConfirm('আপনি কি এই ২২ জন সদস্যকে ইম্পোর্ট করতে চান?', async () => {
+      setActionLoading(true);
+      const usersToAdd = [
+        { name: 'রুবেল মোড়ল', money: 100, date: '2026-05-01' },
+        { name: 'মো: আল-আমিন গাজী', money: 100, date: '2026-05-01' },
+        { name: 'মো সামিউল গাজী', money: 100, date: '2026-05-01' },
+        { name: 'হাসান শেখ', money: 100, date: '2026-05-01' },
+        { name: 'মো: হুসাইন শেখ', money: 100, date: '2026-05-01' },
+        { name: 'মো: হাবিবুর গাজী', money: 50, date: '2026-05-01' },
+        { name: 'মো: সাকিবুল সরদার', money: 30, date: '2026-05-01' },
+        { name: 'হাসান উল্লাহ', money: 0, date: '' },
+        { name: 'মো রায়হান মোড়ল', money: 0, date: '' },
+        { name: 'মো নাজমুল গাজী', money: 0, date: '' },
+        { name: 'মো: রাজু গাজী', money: 0, date: '' },
+        { name: 'রাকিবুল মোড়ল', money: 30, date: '2026-05-01' },
+        { name: 'মো: ইনামুল গাজী', money: 0, date: '' },
+        { name: 'মো: আবু মুসা গাজী', money: 50, date: '2026-05-01' },
+        { name: 'মারুফ মোড়ল', money: 0, date: '' },
+        { name: 'মো মাসউদ মোড়ল', money: 0, date: '' },
+        { name: 'মো রাহাত খান', money: 0, date: '' },
+        { name: 'মো মেহেদী গাজী', money: 0, date: '' },
+        { name: 'মো রিয়াদ গাজী', money: 50, date: '2026-05-01' },
+        { name: 'মো মেহেদী গোলদার', money: 0, date: '' },
+        { name: 'মো তামিম গাজী', money: 0, date: '' },
+        { name: 'জিহাদ গাজী', money: 0, date: '' }
+      ];
+
+      try {
+        let insertedCount = 0;
+        for (const u of usersToAdd) {
+          const userRef = doc(collection(db, 'users'));
+          const uid = userRef.id;
+          
+          await setDoc(userRef, {
+            uid: uid,
+            name: u.name,
+            email: `${uid}@offline-user.app`,
+            mobileNo: '00000000000',
+            address: '',
+            category: 'Category Info Not Set',
+            subscriptionAmount: u.money > 0 ? u.money : 0,
+            subscriptionType: 'monthly',
+            role: 'user',
+            status: 'active',
+            totalContribution: u.money,
+            contributionVisibility: true,
+            joinDate: u.date || new Date().toISOString().split('T')[0],
+            isProfileComplete: true,
+            createdAt: serverTimestamp(),
+          });
+          
+          if (u.money > 0) {
+            const transRef = doc(collection(db, 'transactions'));
+            await setDoc(transRef, {
+              userId: uid,
+              userName: u.name,
+              amount: u.money,
+              type: 'income',
+              category: 'সরাসরি জমা (অ্যাডমিন)',
+              status: 'approved',
+              date: new Date().toISOString(),
+              description: 'অ্যাডমিন কর্তৃক ইমপোর্ট সময় জমা।',
+            });
+            
+            await setDoc(doc(db, 'settings', 'main'), {
+              totalFund: increment(u.money)
+            }, { merge: true });
+          }
+          insertedCount++;
+        }
+        showToast(`${insertedCount} ইউজার সফলভাবে তৈরি করা হয়েছে।`);
+      } catch (err: any) {
+        showToast('ইউজার তৈরি করতে ব্যর্থ হয়েছে: ' + err.message, 'error');
+      } finally {
+        setActionLoading(false);
+      }
+    });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -278,15 +358,27 @@ function UserManagement() {
             </div>
           </div>
         </div>
-        <motion.button 
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setShowAddModal(true)}
-          className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold uppercase text-xs shadow-lg shadow-indigo-600/20 flex items-center gap-3 transition-all"
-        >
-          <Plus size={20} /> 
-          <span>ইউজার যোগ করুন</span>
-        </motion.button>
+        <div className="flex items-center gap-4 relative z-10">
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={importBulkUsers}
+            disabled={actionLoading}
+            className="bg-purple-600/20 text-purple-400 px-8 py-4 rounded-2xl font-bold uppercase text-xs border border-purple-500/20 flex items-center gap-3 transition-all whitespace-nowrap disabled:opacity-50"
+          >
+            <Plus size={20} /> 
+            <span>২২ ইউজার ইমপোর্ট</span>
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowAddModal(true)}
+            className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold uppercase text-xs shadow-lg shadow-indigo-600/20 flex items-center gap-3 transition-all whitespace-nowrap"
+          >
+            <Plus size={20} /> 
+            <span>ইউজার যোগ করুন</span>
+          </motion.button>
+        </div>
       </div>
         <div className="overflow-x-auto no-scrollbar">
           <table className="w-full text-left">
@@ -486,6 +578,17 @@ function UserManagement() {
                     value={newUser.address || ''}
                     onChange={(e) => setNewUser({...newUser, address: e.target.value})}
                   />
+                </div>
+                <div className="md:col-span-2">
+                  <motion.button 
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={actionLoading}
+                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 text-white py-6 rounded-[2rem] font-black uppercase text-sm shadow-[0_20px_40px_rgba(79,70,229,0.4)] disabled:opacity-50 disabled:cursor-not-allowed transition-all relative overflow-hidden group/btn"
+                  >
+                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+                    {actionLoading ? 'প্রসেসিং...' : 'সেভ করুন'}
+                  </motion.button>
                 </div>
               </form>
             </motion.div>

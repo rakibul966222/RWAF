@@ -269,6 +269,83 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
+      {/* Notice Detail Modal */}
+      <AnimatePresence>
+        {selectedNotice && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xl flex items-center justify-center p-6 z-[100]">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 50 }}
+              className="glass-card w-full max-w-2xl overflow-hidden border border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.5)] relative"
+            >
+               <div className={cn(
+                "absolute inset-0 opacity-10 blur-[100px] pointer-events-none",
+                selectedNotice.type === 'urgent' ? "bg-rose-500" : selectedNotice.type === 'warning' ? "bg-amber-500" : "bg-indigo-500"
+              )} />
+              
+              <div className="p-8 md:p-12 border-b border-white/5 flex justify-between items-center bg-white/5 relative z-10">
+                <div className="flex items-center gap-6">
+                  <div className={cn(
+                    "p-4 rounded-2xl border",
+                    selectedNotice.type === 'urgent' ? "bg-rose-500/10 text-rose-400 border-rose-500/20" : 
+                    selectedNotice.type === 'warning' ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                  )}>
+                    {selectedNotice.type === 'urgent' ? <AlertOctagon size={28} /> : 
+                     selectedNotice.type === 'warning' ? <AlertTriangle size={28} /> : <Info size={28} />}
+                  </div>
+                  <div>
+                    <h2 className="text-xl md:text-3xl font-black text-white uppercase tracking-tight">{selectedNotice.title}</h2>
+                    <p className="text-[10px] md:text-xs font-black text-slate-500 uppercase mt-2 opacity-60">প্রকাশিত: {format(new Date(selectedNotice.createdAt), 'dd MMMM yyyy, hh:mm a')}</p>
+                  </div>
+                </div>
+                <motion.button 
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setSelectedNotice(null)}
+                  className="p-3 bg-white/5 text-slate-400 hover:text-white rounded-xl transition-colors border border-white/5"
+                >
+                  <X size={24} />
+                </motion.button>
+              </div>
+
+              <div className="p-8 md:p-12 space-y-8 relative z-10 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <div className="prose prose-invert max-w-none">
+                  <p className="text-slate-300 text-lg md:text-xl font-medium leading-relaxed whitespace-pre-wrap">{selectedNotice.content}</p>
+                </div>
+                
+                <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row gap-6">
+                  <div className="flex-1 p-5 glass rounded-2xl border border-white/5">
+                    <p className="text-[10px] font-black text-slate-500 uppercase mb-2">নোটিশ ধরণ</p>
+                    <p className={cn(
+                      "font-black uppercase text-sm",
+                      selectedNotice.type === 'urgent' ? "text-rose-400" : selectedNotice.type === 'warning' ? "text-amber-400" : "text-indigo-400"
+                    )}>
+                      {selectedNotice.type === 'urgent' ? 'অতি জরুরি' : selectedNotice.type === 'warning' ? 'সতর্কতা' : 'সাধারণ তথ্য'}
+                    </p>
+                  </div>
+                  <div className="flex-1 p-5 glass rounded-2xl border border-white/5">
+                    <p className="text-[10px] font-black text-slate-500 uppercase mb-2">প্রকাশক</p>
+                    <p className="text-white font-black uppercase text-sm">অ্যাডমিন প্যানেল</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 md:p-10 bg-white/5 border-t border-white/5 flex justify-end relative z-10">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setSelectedNotice(null)}
+                  className="px-10 py-4 bg-indigo-600 text-white rounded-xl font-black uppercase text-xs shadow-lg shadow-indigo-600/20"
+                >
+                  ঠিক আছে
+                </motion.button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
         <div className="relative group w-full md:w-auto">
           <div className="absolute -inset-4 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
